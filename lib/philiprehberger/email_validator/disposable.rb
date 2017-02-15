@@ -76,7 +76,7 @@ module Philiprehberger
           domain = extract_domain(email)
           return false if domain.nil?
 
-          DOMAINS.include?(domain.downcase)
+          effective_domains.include?(domain.downcase)
         end
 
         # Check if a domain is in the disposable list.
@@ -86,10 +86,17 @@ module Philiprehberger
         def domain_disposable?(domain)
           return false unless domain.is_a?(String)
 
-          DOMAINS.include?(domain.strip.downcase)
+          effective_domains.include?(domain.strip.downcase)
         end
 
         private
+
+        # Return the effective set of disposable domains, respecting configuration.
+        #
+        # @return [Set<String>]
+        def effective_domains
+          EmailValidator.configuration.effective_disposable_domains
+        end
 
         # Extract the domain from an email address.
         #

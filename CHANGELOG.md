@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-28
+
+### Added
+- `EmailValidator.validate_all(emails, **opts)` for bulk email validation
+- Configurable disposable domain list via `EmailValidator.configure`
+- `EmailValidator.normalize(email)` for email normalization (lowercase, remove aliases)
+- `EmailValidator.suggest(email)` for typo detection and correction suggestions
+- `EmailValidator.domain_info(email)` for domain metadata extraction
+
 ## [0.1.1] - 2026-03-26
 
 ### Added
