@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.email = ['me@philiprehberger.com']
   spec.summary = 'RFC-compliant email validation with MX record verification'
   spec.description = 'Validates email addresses with RFC 5322 syntax checking, MX record verification, ' \
-                       'disposable domain detection, and role-based address identification.'
+                     'disposable domain detection, and role-based address identification.'
   spec.homepage = 'https://philiprehberger.com/open-source-packages/ruby/philiprehberger-email_validator'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.1.0'
