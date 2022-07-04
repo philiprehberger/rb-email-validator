@@ -191,6 +191,61 @@ RSpec.describe Philiprehberger::EmailValidator do
     end
   end
 
+  describe '.batch_validate' do
+    it 'returns a hash mapping each email to its Result' do
+      emails = ['user@example.com', 'invalid', 'alice@example.com']
+      results = described_class.batch_validate(emails)
+
+      expect(results).to be_a(Hash)
+      expect(results.keys).to eq(emails)
+      expect(results['user@example.com']).to be_valid
+      expect(results['invalid']).not_to be_valid
+      expect(results['alice@example.com']).to be_valid
+    end
+
+    it 'returns empty hash for empty input' do
+      results = described_class.batch_validate([])
+
+      expect(results).to eq({})
+    end
+
+    it 'passes options through to validate' do
+      emails = ['user@mailinator.com', 'user@example.com']
+      results = described_class.batch_validate(emails, allow_disposable: false)
+
+      expect(results['user@mailinator.com']).not_to be_valid
+      expect(results['user@mailinator.com'].errors).to include('disposable email domains are not allowed')
+      expect(results['user@example.com']).to be_valid
+    end
+
+    it 'passes check_mx option through' do
+      allow(Philiprehberger::EmailValidator::MxCheck).to receive(:valid?).and_return(false)
+
+      results = described_class.batch_validate(['user@example.com'], check_mx: true)
+
+      expect(results['user@example.com']).not_to be_valid
+    end
+
+    it 'handles duplicate emails by keeping the last result' do
+      emails = ['user@example.com', 'invalid', 'user@example.com']
+      results = described_class.batch_validate(emails)
+
+      expect(results.keys).to eq(['user@example.com', 'invalid'])
+      expect(results['user@example.com']).to be_valid
+    end
+
+    it 'handles mixed valid and invalid emails with warnings' do
+      emails = ['', 'user@example.com', 'bad@@email', 'admin@example.com']
+      results = described_class.batch_validate(emails)
+
+      expect(results['']).not_to be_valid
+      expect(results['user@example.com']).to be_valid
+      expect(results['bad@@email']).not_to be_valid
+      expect(results['admin@example.com']).to be_valid
+      expect(results['admin@example.com'].warnings).to include('address appears to be role-based')
+    end
+  end
+
   describe '.valid_all?' do
     it 'returns true when all emails are valid' do
       emails = ['user@example.com', 'alice@example.com', 'bob@example.com']

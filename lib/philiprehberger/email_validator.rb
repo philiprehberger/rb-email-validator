@@ -70,6 +70,17 @@ module Philiprehberger
         emails.map { |email| validate(email, **opts) }
       end
 
+      # Validate multiple emails and return a hash mapping each email to its Result.
+      #
+      # @param emails [Array<String>] the email addresses to validate
+      # @param opts [Hash] options passed to validate (check_mx:, allow_disposable:)
+      # @return [Hash{String => Result}] hash of email => Result pairs
+      def batch_validate(emails, **opts)
+        emails.to_h do |email|
+          [email, validate(email, **opts)]
+        end
+      end
+
       # Check if all emails in an array are valid.
       #
       # @param emails [Array<String>] the email addresses to check
