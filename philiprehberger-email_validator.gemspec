@@ -7,7 +7,8 @@ Gem::Specification.new do |spec|
   spec.version = Philiprehberger::EmailValidator::VERSION
   spec.authors = ['Philip Rehberger']
   spec.email = ['me@philiprehberger.com']
-  spec.summary = 'RFC-compliant email validation with MX record verification, disposable domain detection, normalization, and typo suggestions'
+  spec.summary = 'RFC-compliant email validation with MX record verification, disposable domain ' \
+                 'detection, normalization, and typo suggestions'
   spec.description = 'Validates email addresses with RFC 5322 syntax checking, MX record verification, ' \
                      'disposable domain detection, and role-based address identification.'
   spec.homepage = 'https://philiprehberger.com/open-source-packages/ruby/philiprehberger-email_validator'
