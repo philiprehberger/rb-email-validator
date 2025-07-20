@@ -385,6 +385,42 @@ RSpec.describe Philiprehberger::EmailValidator do
     end
   end
 
+  describe '.canonical_equal?' do
+    it 'returns true for two identical addresses' do
+      expect(described_class.canonical_equal?('user@example.com', 'user@example.com')).to be true
+    end
+
+    it 'returns true for Gmail dot variants' do
+      expect(described_class.canonical_equal?('foo.bar@gmail.com', 'foobar@gmail.com')).to be true
+    end
+
+    it 'returns true when one side uses a plus-alias' do
+      expect(described_class.canonical_equal?('foo+tag@example.com', 'foo@example.com')).to be true
+    end
+
+    it 'returns true for case-only differences' do
+      expect(described_class.canonical_equal?('User@Example.COM', 'user@example.com')).to be true
+    end
+
+    it 'returns false for completely different addresses' do
+      expect(described_class.canonical_equal?('alice@example.com', 'bob@example.com')).to be false
+    end
+
+    it 'returns false for nil input instead of raising' do
+      expect { described_class.canonical_equal?(nil, 'user@example.com') }.not_to raise_error
+      expect(described_class.canonical_equal?(nil, 'user@example.com')).to be false
+    end
+
+    it 'returns false for empty string input instead of raising' do
+      expect(described_class.canonical_equal?('', 'user@example.com')).to be false
+    end
+
+    it 'returns false for malformed syntax on either side' do
+      expect(described_class.canonical_equal?('not-an-email', 'user@example.com')).to be false
+      expect(described_class.canonical_equal?('user@example.com', '@bad')).to be false
+    end
+  end
+
   describe '.normalize' do
     it 'lowercases the entire email' do
       expect(described_class.normalize('USER@EXAMPLE.COM')).to eq('user@example.com')
