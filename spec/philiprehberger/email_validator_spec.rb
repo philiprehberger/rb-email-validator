@@ -144,6 +144,79 @@ RSpec.describe Philiprehberger::EmailValidator do
     end
   end
 
+  describe '.validate_all' do
+    it 'validates an array of emails and returns array of Results' do
+      emails = ['user@example.com', 'invalid', 'alice@example.com']
+      results = described_class.validate_all(emails)
+
+      expect(results).to be_an(Array)
+      expect(results.length).to eq(3)
+      expect(results[0]).to be_valid
+      expect(results[1]).not_to be_valid
+      expect(results[2]).to be_valid
+    end
+
+    it 'returns empty array for empty input' do
+      results = described_class.validate_all([])
+
+      expect(results).to eq([])
+    end
+
+    it 'passes options through to validate' do
+      emails = ['user@mailinator.com', 'user@example.com']
+      results = described_class.validate_all(emails, allow_disposable: false)
+
+      expect(results[0]).not_to be_valid
+      expect(results[0].errors).to include('disposable email domains are not allowed')
+      expect(results[1]).to be_valid
+    end
+
+    it 'passes check_mx option through' do
+      allow(Philiprehberger::EmailValidator::MxCheck).to receive(:valid?).and_return(false)
+
+      results = described_class.validate_all(['user@example.com'], check_mx: true)
+
+      expect(results[0]).not_to be_valid
+    end
+
+    it 'handles mixed valid and invalid emails' do
+      emails = ['', 'user@example.com', 'bad@@email', 'admin@example.com']
+      results = described_class.validate_all(emails)
+
+      expect(results[0]).not_to be_valid
+      expect(results[1]).to be_valid
+      expect(results[2]).not_to be_valid
+      expect(results[3]).to be_valid
+      expect(results[3].warnings).to include('address appears to be role-based')
+    end
+  end
+
+  describe '.valid_all?' do
+    it 'returns true when all emails are valid' do
+      emails = ['user@example.com', 'alice@example.com', 'bob@example.com']
+
+      expect(described_class.valid_all?(emails)).to be true
+    end
+
+    it 'returns false when any email is invalid' do
+      emails = ['user@example.com', 'invalid', 'alice@example.com']
+
+      expect(described_class.valid_all?(emails)).to be false
+    end
+
+    it 'returns true for empty array' do
+      expect(described_class.valid_all?([])).to be true
+    end
+
+    it 'returns false when first email is invalid' do
+      expect(described_class.valid_all?(['bad', 'user@example.com'])).to be false
+    end
+
+    it 'returns false when last email is invalid' do
+      expect(described_class.valid_all?(['user@example.com', 'bad'])).to be false
+    end
+  end
+
   describe '.disposable?' do
     it 'returns true for known disposable domains' do
       expect(described_class.disposable?('user@mailinator.com')).to be true
@@ -194,6 +267,245 @@ RSpec.describe Philiprehberger::EmailValidator do
 
       expect(described_class.mx_valid?('example.com')).to be true
       expect(Philiprehberger::EmailValidator::MxCheck).to have_received(:valid?).with('example.com')
+    end
+  end
+
+  describe '.configure and .reset_configuration!' do
+    after do
+      described_class.reset_configuration!
+    end
+
+    it 'allows adding custom disposable domains' do
+      described_class.configure do |config|
+        config.add_disposable_domains(['custom-temp.com'])
+      end
+
+      expect(described_class.disposable?('user@custom-temp.com')).to be true
+    end
+
+    it 'allows removing built-in disposable domains' do
+      expect(described_class.disposable?('user@mailinator.com')).to be true
+
+      described_class.configure do |config|
+        config.remove_disposable_domains(['mailinator.com'])
+      end
+
+      expect(described_class.disposable?('user@mailinator.com')).to be false
+    end
+
+    it 'resets configuration to defaults' do
+      described_class.configure do |config|
+        config.add_disposable_domains(['custom-temp.com'])
+        config.remove_disposable_domains(['mailinator.com'])
+      end
+
+      described_class.reset_configuration!
+
+      expect(described_class.disposable?('user@custom-temp.com')).to be false
+      expect(described_class.disposable?('user@mailinator.com')).to be true
+    end
+
+    it 'affects validation with allow_disposable: false' do
+      described_class.configure do |config|
+        config.add_disposable_domains(['my-temp-domain.com'])
+      end
+
+      result = described_class.validate('user@my-temp-domain.com', allow_disposable: false)
+
+      expect(result).not_to be_valid
+      expect(result.errors).to include('disposable email domains are not allowed')
+    end
+
+    it 'handles multiple configure calls' do
+      described_class.configure do |config|
+        config.add_disposable_domains(['temp1.com'])
+      end
+
+      described_class.configure do |config|
+        config.add_disposable_domains(['temp2.com'])
+      end
+
+      expect(described_class.disposable?('user@temp1.com')).to be true
+      expect(described_class.disposable?('user@temp2.com')).to be true
+    end
+  end
+
+  describe '.normalize' do
+    it 'lowercases the entire email' do
+      expect(described_class.normalize('USER@EXAMPLE.COM')).to eq('user@example.com')
+    end
+
+    it 'trims whitespace' do
+      expect(described_class.normalize('  user@example.com  ')).to eq('user@example.com')
+    end
+
+    it 'removes plus-addressing aliases' do
+      expect(described_class.normalize('user+tag@example.com')).to eq('user@example.com')
+    end
+
+    it 'removes dots from Gmail local parts' do
+      expect(described_class.normalize('jo.hn@gmail.com')).to eq('john@gmail.com')
+    end
+
+    it 'removes dots from googlemail.com local parts' do
+      expect(described_class.normalize('jo.hn@googlemail.com')).to eq('john@googlemail.com')
+    end
+
+    it 'does not remove dots from non-Gmail domains' do
+      expect(described_class.normalize('first.last@example.com')).to eq('first.last@example.com')
+    end
+
+    it 'handles combined Gmail normalization' do
+      expect(described_class.normalize('Jo.Hn+spam@Gmail.com')).to eq('john@gmail.com')
+    end
+
+    it 'handles plus tag with no suffix' do
+      expect(described_class.normalize('user+@example.com')).to eq('user@example.com')
+    end
+
+    it 'raises on non-string input' do
+      expect { described_class.normalize(nil) }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+
+    it 'raises on empty string' do
+      expect { described_class.normalize('') }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+
+    it 'raises on missing @ symbol' do
+      expect { described_class.normalize('plaintext') }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+
+    it 'raises on empty local part' do
+      expect { described_class.normalize('@example.com') }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+
+    it 'raises on empty domain' do
+      expect { described_class.normalize('user@') }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+
+    it 'handles whitespace-only input' do
+      expect { described_class.normalize('   ') }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+  end
+
+  describe '.suggest' do
+    it 'suggests gmail.com for gmial.com' do
+      result = described_class.suggest('user@gmial.com')
+
+      expect(result).not_to be_nil
+      expect(result[:suggested]).to eq('user@gmail.com')
+      expect(result[:original]).to eq('user@gmial.com')
+    end
+
+    it 'suggests yahoo.com for yaho.com' do
+      result = described_class.suggest('user@yaho.com')
+
+      expect(result).not_to be_nil
+      expect(result[:suggested]).to eq('user@yahoo.com')
+    end
+
+    it 'suggests hotmail.com for hotmal.com' do
+      result = described_class.suggest('user@hotmal.com')
+
+      expect(result).not_to be_nil
+      expect(result[:suggested]).to eq('user@hotmail.com')
+    end
+
+    it 'suggests outlook.com for outlok.com' do
+      result = described_class.suggest('user@outlok.com')
+
+      expect(result).not_to be_nil
+      expect(result[:suggested]).to eq('user@outlook.com')
+    end
+
+    it 'suggests gmail.com for gmal.com' do
+      result = described_class.suggest('user@gmal.com')
+
+      expect(result).not_to be_nil
+      expect(result[:suggested]).to eq('user@gmail.com')
+    end
+
+    it 'returns nil for correct domains' do
+      expect(described_class.suggest('user@gmail.com')).to be_nil
+      expect(described_class.suggest('user@yahoo.com')).to be_nil
+    end
+
+    it 'returns nil for unknown domains' do
+      expect(described_class.suggest('user@mycustomdomain.com')).to be_nil
+    end
+
+    it 'returns nil for non-string input' do
+      expect(described_class.suggest(nil)).to be_nil
+      expect(described_class.suggest(123)).to be_nil
+    end
+
+    it 'returns nil for malformed input' do
+      expect(described_class.suggest('plaintext')).to be_nil
+      expect(described_class.suggest('@')).to be_nil
+    end
+
+    it 'preserves the local part in the suggestion' do
+      result = described_class.suggest('alice+tag@gmial.com')
+
+      expect(result[:suggested]).to eq('alice+tag@gmail.com')
+    end
+
+    it 'returns nil when distance is too large' do
+      expect(described_class.suggest('user@xxxxxxxxx.com')).to be_nil
+    end
+  end
+
+  describe '.domain_info' do
+    it 'extracts domain and TLD' do
+      info = described_class.domain_info('user@example.com')
+
+      expect(info[:domain]).to eq('example.com')
+      expect(info[:tld]).to eq('com')
+    end
+
+    it 'handles subdomains' do
+      info = described_class.domain_info('user@mail.sub.example.co.uk')
+
+      expect(info[:domain]).to eq('mail.sub.example.co.uk')
+      expect(info[:tld]).to eq('uk')
+    end
+
+    it 'lowercases the domain' do
+      info = described_class.domain_info('user@EXAMPLE.COM')
+
+      expect(info[:domain]).to eq('example.com')
+    end
+
+    it 'does not include mx_records by default' do
+      info = described_class.domain_info('user@example.com')
+
+      expect(info).not_to have_key(:mx_records)
+    end
+
+    it 'includes mx_records when check_mx is true' do
+      allow(Philiprehberger::EmailValidator::MxCheck).to receive(:mx_records)
+        .with('example.com')
+        .and_return(['mail.example.com'])
+
+      info = described_class.domain_info('user@example.com', check_mx: true)
+
+      expect(info[:mx_records]).to eq(['mail.example.com'])
+    end
+
+    it 'raises on non-string input' do
+      expect { described_class.domain_info(nil) }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+
+    it 'raises on empty string' do
+      expect { described_class.domain_info('') }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+
+    it 'raises on missing @ symbol' do
+      expect { described_class.domain_info('plaintext') }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+
+    it 'raises on empty domain' do
+      expect { described_class.domain_info('user@') }.to raise_error(Philiprehberger::EmailValidator::Error)
     end
   end
 end
@@ -366,5 +678,160 @@ RSpec.describe Philiprehberger::EmailValidator::Result do
 
     invalid_result = described_class.new(errors: ['bad'])
     expect(invalid_result.to_s).to include('invalid')
+  end
+end
+
+RSpec.describe Philiprehberger::EmailValidator::Configuration do
+  subject(:config) { described_class.new }
+
+  it 'starts with empty added domains' do
+    expect(config.added_disposable_domains).to be_empty
+  end
+
+  it 'starts with empty removed domains' do
+    expect(config.removed_disposable_domains).to be_empty
+  end
+
+  it 'adds disposable domains' do
+    config.add_disposable_domains(['test.com', 'temp.org'])
+
+    expect(config.added_disposable_domains).to include('test.com', 'temp.org')
+  end
+
+  it 'removes disposable domains' do
+    config.remove_disposable_domains(['mailinator.com'])
+
+    expect(config.removed_disposable_domains).to include('mailinator.com')
+  end
+
+  it 'lowercases added domains' do
+    config.add_disposable_domains(['TEST.COM'])
+
+    expect(config.added_disposable_domains).to include('test.com')
+  end
+
+  it 'lowercases removed domains' do
+    config.remove_disposable_domains(['MAILINATOR.COM'])
+
+    expect(config.removed_disposable_domains).to include('mailinator.com')
+  end
+
+  it 'returns effective domains including added and excluding removed' do
+    config.add_disposable_domains(['custom-temp.com'])
+    config.remove_disposable_domains(['mailinator.com'])
+
+    effective = config.effective_disposable_domains
+
+    expect(effective).to include('custom-temp.com')
+    expect(effective).not_to include('mailinator.com')
+    expect(effective).to include('guerrillamail.com')
+  end
+end
+
+RSpec.describe Philiprehberger::EmailValidator::Normalizer do
+  describe '.normalize' do
+    it 'lowercases everything' do
+      expect(described_class.normalize('USER@EXAMPLE.COM')).to eq('user@example.com')
+    end
+
+    it 'strips whitespace' do
+      expect(described_class.normalize('  user@example.com  ')).to eq('user@example.com')
+    end
+
+    it 'removes plus aliases' do
+      expect(described_class.normalize('user+newsletter@example.com')).to eq('user@example.com')
+    end
+
+    it 'removes Gmail dots' do
+      expect(described_class.normalize('j.o.h.n@gmail.com')).to eq('john@gmail.com')
+    end
+
+    it 'does not remove dots for non-Gmail' do
+      expect(described_class.normalize('j.o.h.n@example.com')).to eq('j.o.h.n@example.com')
+    end
+
+    it 'handles combined normalization' do
+      expect(described_class.normalize('  J.O.H.N+spam@GMAIL.COM  ')).to eq('john@gmail.com')
+    end
+
+    it 'raises for nil' do
+      expect { described_class.normalize(nil) }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+
+    it 'raises for empty' do
+      expect { described_class.normalize('') }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+
+    it 'raises for no @ symbol' do
+      expect { described_class.normalize('nope') }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
+  end
+end
+
+RSpec.describe Philiprehberger::EmailValidator::TypoSuggester do
+  describe '.suggest' do
+    it 'suggests gmail.com for gmial.com' do
+      result = described_class.suggest('user@gmial.com')
+
+      expect(result[:suggested]).to eq('user@gmail.com')
+    end
+
+    it 'suggests yahoo.com for yaho.com' do
+      result = described_class.suggest('user@yaho.com')
+
+      expect(result[:suggested]).to eq('user@yahoo.com')
+    end
+
+    it 'returns nil for correct domains' do
+      expect(described_class.suggest('user@gmail.com')).to be_nil
+    end
+
+    it 'returns nil for distant domains' do
+      expect(described_class.suggest('user@totallyunknown.com')).to be_nil
+    end
+
+    it 'returns nil for nil input' do
+      expect(described_class.suggest(nil)).to be_nil
+    end
+  end
+end
+
+RSpec.describe Philiprehberger::EmailValidator::DomainInfoExtractor do
+  describe '.extract' do
+    it 'extracts domain and tld' do
+      info = described_class.extract('user@example.com')
+
+      expect(info[:domain]).to eq('example.com')
+      expect(info[:tld]).to eq('com')
+    end
+
+    it 'handles multi-level domains' do
+      info = described_class.extract('user@sub.example.co.uk')
+
+      expect(info[:domain]).to eq('sub.example.co.uk')
+      expect(info[:tld]).to eq('uk')
+    end
+
+    it 'does not include mx_records by default' do
+      info = described_class.extract('user@example.com')
+
+      expect(info).not_to have_key(:mx_records)
+    end
+
+    it 'includes mx_records when requested' do
+      allow(Philiprehberger::EmailValidator::MxCheck).to receive(:mx_records)
+        .with('example.com')
+        .and_return(['mx1.example.com'])
+
+      info = described_class.extract('user@example.com', check_mx: true)
+
+      expect(info[:mx_records]).to eq(['mx1.example.com'])
+    end
+
+    it 'raises for invalid input' do
+      expect { described_class.extract(nil) }.to raise_error(Philiprehberger::EmailValidator::Error)
+      expect { described_class.extract('') }.to raise_error(Philiprehberger::EmailValidator::Error)
+      expect { described_class.extract('nope') }.to raise_error(Philiprehberger::EmailValidator::Error)
+    end
   end
 end

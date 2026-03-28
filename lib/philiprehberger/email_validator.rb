@@ -7,6 +7,10 @@ require_relative 'email_validator/result'
 require_relative 'email_validator/syntax'
 require_relative 'email_validator/mx_check'
 require_relative 'email_validator/disposable'
+require_relative 'email_validator/configuration'
+require_relative 'email_validator/normalizer'
+require_relative 'email_validator/typo_suggester'
+require_relative 'email_validator/domain_info_extractor'
 
 module Philiprehberger
   module EmailValidator
@@ -44,7 +48,7 @@ module Philiprehberger
         errors.concat(syntax_errors)
 
         if syntax_errors.empty?
-          errors << 'disposable email domains are not allowed' if !allow_disposable && Disposable.disposable?(email)
+          errors << 'disposable email domains are not allowed' if !allow_disposable && disposable_domain?(email)
 
           warnings << 'address appears to be role-based' if role_based?(email)
 
@@ -55,6 +59,23 @@ module Philiprehberger
         end
 
         Result.new(errors: errors, warnings: warnings)
+      end
+
+      # Validate an array of email addresses.
+      #
+      # @param emails [Array<String>] the email addresses to validate
+      # @param opts [Hash] options passed to validate (check_mx:, allow_disposable:)
+      # @return [Array<Result>] array of Result objects
+      def validate_all(emails, **opts)
+        emails.map { |email| validate(email, **opts) }
+      end
+
+      # Check if all emails in an array are valid.
+      #
+      # @param emails [Array<String>] the email addresses to check
+      # @return [Boolean] true only if all emails are valid
+      def valid_all?(emails)
+        emails.all? { |email| valid?(email) }
       end
 
       # Check if a domain has valid MX records.
@@ -70,7 +91,7 @@ module Philiprehberger
       # @param email [String] the email address to check
       # @return [Boolean] true if the domain is disposable
       def disposable?(email)
-        Disposable.disposable?(email)
+        disposable_domain?(email)
       end
 
       # Detect role-based email addresses (info@, admin@, support@, etc.).
@@ -86,7 +107,69 @@ module Philiprehberger
         ROLE_BASED_LOCALS.include?(local.downcase)
       end
 
+      # Configure the email validator.
+      #
+      # @yield [Configuration] the configuration object
+      # @return [void]
+      def configure
+        yield configuration
+      end
+
+      # Reset configuration to defaults.
+      #
+      # @return [void]
+      def reset_configuration!
+        @configuration = Configuration.new
+      end
+
+      # The current configuration instance.
+      #
+      # @return [Configuration]
+      def configuration
+        @configuration ||= Configuration.new
+      end
+
+      # Normalize an email address.
+      #
+      # @param email [String] the email address to normalize
+      # @return [String] the normalized email address
+      # @raise [Error] if format is invalid
+      def normalize(email)
+        Normalizer.normalize(email)
+      end
+
+      # Suggest a corrected email if the domain appears to be a typo.
+      #
+      # @param email [String] the email address to check
+      # @return [Hash, nil] { original:, suggested: } or nil if no suggestion
+      def suggest(email)
+        TypoSuggester.suggest(email)
+      end
+
+      # Extract domain information from an email address.
+      #
+      # @param email [String] the email address to analyze
+      # @param check_mx [Boolean] whether to look up MX records (default: false)
+      # @return [Hash] { domain:, tld:, mx_records: }
+      # @raise [Error] if format is invalid
+      def domain_info(email, check_mx: false)
+        DomainInfoExtractor.extract(email, check_mx: check_mx)
+      end
+
       private
+
+      # Check if an email uses a disposable domain, respecting configuration.
+      #
+      # @param email [String]
+      # @return [Boolean]
+      def disposable_domain?(email)
+        return false unless email.is_a?(String)
+
+        domain = extract_domain(email)
+        return false if domain.nil?
+
+        configuration.effective_disposable_domains.include?(domain.downcase)
+      end
 
       # Extract the domain part from an email address.
       #
