@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-04
+
+### Added
+- `EmailValidator.batch_validate(emails, **opts)` for validating multiple emails and returning a hash of `{ email => Result }` pairs
+
 ## [0.2.1] - 2026-03-31
 
 ### Changed

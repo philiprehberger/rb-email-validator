@@ -93,6 +93,17 @@ Philiprehberger::EmailValidator.valid_all?(["user@example.com", "alice@example.c
 # => true
 ```
 
+### Batch Validation (Hash)
+
+```ruby
+emails = ["user@example.com", "invalid", "admin@example.com"]
+
+results = Philiprehberger::EmailValidator.batch_validate(emails)
+results["user@example.com"].valid?  # => true
+results["invalid"].valid?           # => false
+results["admin@example.com"].valid? # => true
+```
+
 ### Custom Disposable Domain List
 
 ```ruby
@@ -144,6 +155,7 @@ Philiprehberger::EmailValidator.domain_info("user@example.com", check_mx: true)
 | `EmailValidator.valid?(email)` | Quick syntax check, returns boolean |
 | `EmailValidator.validate(email, check_mx: false, allow_disposable: true)` | Full validation returning Result |
 | `EmailValidator.validate_all(emails, **opts)` | Bulk validation returning array of Results |
+| `EmailValidator.batch_validate(emails, **opts)` | Bulk validation returning hash of `{ email => Result }` |
 | `EmailValidator.valid_all?(emails)` | Returns true only if all emails are valid |
 | `EmailValidator.mx_valid?(domain)` | Check if domain has MX or A records |
 | `EmailValidator.disposable?(email)` | Check if email uses a disposable domain |
