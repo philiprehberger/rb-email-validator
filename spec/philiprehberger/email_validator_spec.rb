@@ -421,6 +421,83 @@ RSpec.describe Philiprehberger::EmailValidator do
     end
   end
 
+  describe '.extract_tag' do
+    it 'returns the tag for a Gmail address with a plus tag' do
+      expect(described_class.extract_tag('user+promo@gmail.com')).to eq('promo')
+    end
+
+    it 'returns nil when no tag is present' do
+      expect(described_class.extract_tag('user@gmail.com')).to be_nil
+    end
+
+    it 'returns nil for a completely invalid email' do
+      expect(described_class.extract_tag('invalid')).to be_nil
+    end
+
+    it 'returns nil for non-string input' do
+      expect(described_class.extract_tag(nil)).to be_nil
+      expect(described_class.extract_tag(123)).to be_nil
+    end
+
+    it 'returns nil for an empty string' do
+      expect(described_class.extract_tag('')).to be_nil
+    end
+
+    it 'returns nil when the local part is empty' do
+      expect(described_class.extract_tag('@gmail.com')).to be_nil
+    end
+
+    it 'returns nil when the domain is empty' do
+      expect(described_class.extract_tag('user+promo@')).to be_nil
+    end
+
+    it 'treats only the first + as the separator for multiple plus signs' do
+      expect(described_class.extract_tag('user+a+b@gmail.com')).to eq('a+b')
+    end
+
+    it 'returns an empty string tag for a bare + with no suffix' do
+      expect(described_class.extract_tag('user+@gmail.com')).to eq('')
+    end
+  end
+
+  describe '.strip_tag' do
+    it 'strips the tag from a Gmail address' do
+      expect(described_class.strip_tag('user+promo@gmail.com')).to eq('user@gmail.com')
+    end
+
+    it 'strips the tag from a non-Gmail address (generic sub-addressing)' do
+      expect(described_class.strip_tag('user+promo@example.com')).to eq('user@example.com')
+    end
+
+    it 'returns the email unchanged when no tag is present' do
+      expect(described_class.strip_tag('user@gmail.com')).to eq('user@gmail.com')
+    end
+
+    it 'preserves domain case' do
+      expect(described_class.strip_tag('user+promo@Example.COM')).to eq('user@Example.COM')
+    end
+
+    it 'returns the original value unchanged for invalid input' do
+      expect(described_class.strip_tag('invalid')).to eq('invalid')
+      expect(described_class.strip_tag('')).to eq('')
+      expect(described_class.strip_tag('@gmail.com')).to eq('@gmail.com')
+      expect(described_class.strip_tag('user@')).to eq('user@')
+    end
+
+    it 'returns non-string input unchanged' do
+      expect(described_class.strip_tag(nil)).to be_nil
+      expect(described_class.strip_tag(123)).to eq(123)
+    end
+
+    it 'treats only the first + as the separator for multiple plus signs' do
+      expect(described_class.strip_tag('user+a+b@gmail.com')).to eq('user@gmail.com')
+    end
+
+    it 'handles a bare + with no suffix' do
+      expect(described_class.strip_tag('user+@gmail.com')).to eq('user@gmail.com')
+    end
+  end
+
   describe '.normalize' do
     it 'lowercases the entire email' do
       expect(described_class.normalize('USER@EXAMPLE.COM')).to eq('user@example.com')
