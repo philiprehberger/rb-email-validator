@@ -149,6 +149,19 @@ module Philiprehberger
         Normalizer.normalize(email)
       end
 
+      # Compare two email addresses after normalization.
+      #
+      # Returns false rather than raising if either input is invalid.
+      #
+      # @param a [String] first email address
+      # @param b [String] second email address
+      # @return [Boolean] true if both normalize to the same address
+      def canonical_equal?(a, b)
+        Normalizer.normalize(a) == Normalizer.normalize(b)
+      rescue Error, StandardError
+        false
+      end
+
       # Suggest a corrected email if the domain appears to be a typo.
       #
       # @param email [String] the email address to check

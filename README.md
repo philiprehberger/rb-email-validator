@@ -128,6 +128,21 @@ Philiprehberger::EmailValidator.normalize("  USER+tag@Example.COM  ")
 # => "user@example.com"
 ```
 
+### Canonical Equality
+
+```ruby
+require "philiprehberger/email_validator"
+
+Philiprehberger::EmailValidator.canonical_equal?("Foo.Bar+spam@Gmail.com", "foobar@gmail.com")
+# => true
+
+Philiprehberger::EmailValidator.canonical_equal?("alice@example.com", "bob@example.com")
+# => false
+
+Philiprehberger::EmailValidator.canonical_equal?(nil, "user@example.com")
+# => false
+```
+
 ### Typo Suggestion
 
 ```ruby
@@ -163,6 +178,7 @@ Philiprehberger::EmailValidator.domain_info("user@example.com", check_mx: true)
 | `EmailValidator.configure { \|config\| ... }` | Configure custom disposable domain list |
 | `EmailValidator.reset_configuration!` | Reset configuration to defaults |
 | `EmailValidator.normalize(email)` | Normalize email (lowercase, remove aliases, Gmail dots) |
+| `EmailValidator.canonical_equal?(a, b)` | Compare two emails after normalization; false on invalid input |
 | `EmailValidator.suggest(email)` | Suggest corrected domain for typos |
 | `EmailValidator.domain_info(email, check_mx: false)` | Extract domain metadata |
 
