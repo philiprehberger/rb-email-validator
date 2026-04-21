@@ -128,6 +128,22 @@ Philiprehberger::EmailValidator.normalize("  USER+tag@Example.COM  ")
 # => "user@example.com"
 ```
 
+### Sub-address Tags
+
+```ruby
+Philiprehberger::EmailValidator.extract_tag("user+promo@gmail.com")
+# => "promo"
+
+Philiprehberger::EmailValidator.extract_tag("user@gmail.com")
+# => nil
+
+Philiprehberger::EmailValidator.strip_tag("user+promo@gmail.com")
+# => "user@gmail.com"
+
+Philiprehberger::EmailValidator.strip_tag("user+a+b@gmail.com")
+# => "user@gmail.com"
+```
+
 ### Canonical Equality
 
 ```ruby
@@ -179,6 +195,8 @@ Philiprehberger::EmailValidator.domain_info("user@example.com", check_mx: true)
 | `EmailValidator.reset_configuration!` | Reset configuration to defaults |
 | `EmailValidator.normalize(email)` | Normalize email (lowercase, remove aliases, Gmail dots) |
 | `EmailValidator.canonical_equal?(a, b)` | Compare two emails after normalization; false on invalid input |
+| `EmailValidator.extract_tag(email)` | Extract the sub-address tag after `+` in the local part; nil if none or invalid |
+| `EmailValidator.strip_tag(email)` | Remove any `+tag` from the local part; returns the original value on invalid input |
 | `EmailValidator.suggest(email)` | Suggest corrected domain for typos |
 | `EmailValidator.domain_info(email, check_mx: false)` | Extract domain metadata |
 

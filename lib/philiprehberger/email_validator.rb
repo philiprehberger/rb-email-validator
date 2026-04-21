@@ -162,6 +162,52 @@ module Philiprehberger
         false
       end
 
+      # Extract the sub-address tag (the portion after the first `+` in the
+      # local part) from an email address.
+      #
+      # Only the first `+` separates the user from the tag, so
+      # `'user+a+b@gmail.com'` yields the tag `'a+b'`.
+      #
+      # @param email [String] the email address to inspect
+      # @return [String, nil] the tag portion, or nil if no tag is present or
+      #   the input is not a valid email
+      def extract_tag(email)
+        return nil unless email.is_a?(String)
+
+        local = extract_local(email)
+        domain = extract_domain(email)
+        return nil if local.nil? || domain.nil? || local.empty? || domain.empty?
+
+        parts = local.split('+', 2)
+        return nil if parts.length != 2
+
+        parts[1]
+      end
+
+      # Return the email with any sub-address tag (`+tag`) removed from the
+      # local part. Domain case is preserved.
+      #
+      # Only the first `+` separates the user from the tag, so
+      # `'user+a+b@gmail.com'` becomes `'user@gmail.com'`.
+      #
+      # For invalid input (non-string, missing `@`, empty local or domain),
+      # the original value is returned unchanged — matching the defensive
+      # behavior of `canonical_equal?`.
+      #
+      # @param email [String] the email address to strip
+      # @return [String] the email without a `+tag`, or the original value if
+      #   the input is invalid
+      def strip_tag(email)
+        return email unless email.is_a?(String)
+
+        local = extract_local(email)
+        domain = extract_domain(email)
+        return email if local.nil? || domain.nil? || local.empty? || domain.empty?
+
+        stripped_local = local.split('+', 2).first
+        "#{stripped_local}@#{domain}"
+      end
+
       # Suggest a corrected email if the domain appears to be a typo.
       #
       # @param email [String] the email address to check
