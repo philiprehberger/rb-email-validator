@@ -144,6 +144,21 @@ Philiprehberger::EmailValidator.strip_tag("user+a+b@gmail.com")
 # => "user@gmail.com"
 ```
 
+### Splitting an Address
+
+Get the local, domain, and tag in one call:
+
+```ruby
+Philiprehberger::EmailValidator.split("user+work@example.com")
+# => { local: "user", domain: "example.com", tag: "work" }
+
+Philiprehberger::EmailValidator.split("user@example.com")
+# => { local: "user", domain: "example.com", tag: nil }
+
+Philiprehberger::EmailValidator.split("not-an-email")
+# => nil
+```
+
 ### Canonical Equality
 
 ```ruby
@@ -197,6 +212,7 @@ Philiprehberger::EmailValidator.domain_info("user@example.com", check_mx: true)
 | `EmailValidator.canonical_equal?(a, b)` | Compare two emails after normalization; false on invalid input |
 | `EmailValidator.extract_tag(email)` | Extract the sub-address tag after `+` in the local part; nil if none or invalid |
 | `EmailValidator.strip_tag(email)` | Remove any `+tag` from the local part; returns the original value on invalid input |
+| `EmailValidator.split(email)` | Return `{ local:, domain:, tag: }`; `nil` for invalid input |
 | `EmailValidator.suggest(email)` | Suggest corrected domain for typos |
 | `EmailValidator.domain_info(email, check_mx: false)` | Extract domain metadata |
 

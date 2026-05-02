@@ -498,6 +498,44 @@ RSpec.describe Philiprehberger::EmailValidator do
     end
   end
 
+  describe '.split' do
+    it 'returns local, domain, and tag for a tagged address' do
+      expect(described_class.split('user+work@example.com')).to eq(
+        local: 'user', domain: 'example.com', tag: 'work'
+      )
+    end
+
+    it 'returns nil tag when no plus is present' do
+      expect(described_class.split('user@example.com')).to eq(
+        local: 'user', domain: 'example.com', tag: nil
+      )
+    end
+
+    it 'preserves trailing tag content after the first plus' do
+      expect(described_class.split('user+a+b@example.com')).to eq(
+        local: 'user', domain: 'example.com', tag: 'a+b'
+      )
+    end
+
+    it 'preserves domain case' do
+      expect(described_class.split('user@Example.COM')[:domain]).to eq('Example.COM')
+    end
+
+    it 'returns nil for missing @' do
+      expect(described_class.split('userexample.com')).to be_nil
+    end
+
+    it 'returns nil for empty local or domain' do
+      expect(described_class.split('@example.com')).to be_nil
+      expect(described_class.split('user@')).to be_nil
+    end
+
+    it 'returns nil for non-string input' do
+      expect(described_class.split(nil)).to be_nil
+      expect(described_class.split(123)).to be_nil
+    end
+  end
+
   describe '.normalize' do
     it 'lowercases the entire email' do
       expect(described_class.normalize('USER@EXAMPLE.COM')).to eq('user@example.com')

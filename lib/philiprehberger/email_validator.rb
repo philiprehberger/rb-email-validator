@@ -208,6 +208,28 @@ module Philiprehberger
         "#{stripped_local}@#{domain}"
       end
 
+      # Split an email address into its local part, domain, and sub-address
+      # tag in one call.
+      #
+      # Returns `nil` if the input is not a valid email address (non-string,
+      # missing `@`, or an empty local or domain). The `:tag` key is `nil`
+      # when no `+tag` is present in the local part. The local part is
+      # returned with any tag stripped.
+      #
+      # @param email [String] the email address to split
+      # @return [Hash{Symbol => String, nil}, nil] `{ local:, domain:, tag: }`
+      #   or `nil` for invalid input
+      def split(email)
+        return nil unless email.is_a?(String)
+
+        local = extract_local(email)
+        domain = extract_domain(email)
+        return nil if local.nil? || domain.nil? || local.empty? || domain.empty?
+
+        local_part, tag = local.split('+', 2)
+        { local: local_part, domain: domain, tag: tag }
+      end
+
       # Suggest a corrected email if the domain appears to be a typo.
       #
       # @param email [String] the email address to check
