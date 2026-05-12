@@ -421,6 +421,42 @@ RSpec.describe Philiprehberger::EmailValidator do
     end
   end
 
+  describe '.same_domain?' do
+    it 'returns true for an exact same-domain match' do
+      expect(described_class.same_domain?('alice@example.com', 'bob@example.com')).to be true
+    end
+
+    it 'is case-insensitive on the domain' do
+      expect(described_class.same_domain?('USER@example.com', 'other@EXAMPLE.com')).to be true
+    end
+
+    it 'returns false for different domains' do
+      expect(described_class.same_domain?('alice@example.com', 'bob@other.com')).to be false
+    end
+
+    it 'returns false when either side is nil' do
+      expect(described_class.same_domain?(nil, 'user@example.com')).to be false
+      expect(described_class.same_domain?('user@example.com', nil)).to be false
+    end
+
+    it 'returns false when either side is an empty string' do
+      expect(described_class.same_domain?('', 'user@example.com')).to be false
+      expect(described_class.same_domain?('user@example.com', '')).to be false
+    end
+
+    it 'returns false when either side has no @ symbol' do
+      expect(described_class.same_domain?('no-at-symbol', 'user@example.com')).to be false
+    end
+
+    it 'returns false when either side has multiple @ signs' do
+      expect(described_class.same_domain?('multiple@@signs', 'user@example.com')).to be false
+    end
+
+    it 'returns true for same-domain addresses with different sub-address tags' do
+      expect(described_class.same_domain?('a+x@example.com', 'b+y@example.com')).to be true
+    end
+  end
+
   describe '.extract_tag' do
     it 'returns the tag for a Gmail address with a plus tag' do
       expect(described_class.extract_tag('user+promo@gmail.com')).to eq('promo')

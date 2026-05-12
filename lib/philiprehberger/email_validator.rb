@@ -162,6 +162,25 @@ module Philiprehberger
         false
       end
 
+      # Check whether two email addresses share the same domain
+      # (case-insensitive).
+      #
+      # Returns false rather than raising if either input fails basic syntax
+      # validation (e.g., nil, empty, missing `@`, multiple `@`, malformed).
+      #
+      # @param a [String] first email address
+      # @param b [String] second email address
+      # @return [Boolean] true when both addresses share the same domain
+      def same_domain?(a, b)
+        return false unless valid?(a) && valid?(b)
+
+        parts_a = split(a)
+        parts_b = split(b)
+        return false if parts_a.nil? || parts_b.nil?
+
+        parts_a[:domain].downcase == parts_b[:domain].downcase
+      end
+
       # Extract the sub-address tag (the portion after the first `+` in the
       # local part) from an email address.
       #

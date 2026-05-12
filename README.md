@@ -210,6 +210,7 @@ Philiprehberger::EmailValidator.domain_info("user@example.com", check_mx: true)
 | `EmailValidator.reset_configuration!` | Reset configuration to defaults |
 | `EmailValidator.normalize(email)` | Normalize email (lowercase, remove aliases, Gmail dots) |
 | `EmailValidator.canonical_equal?(a, b)` | Compare two emails after normalization; false on invalid input |
+| `EmailValidator.same_domain?(a, b)` | Return true when both addresses share the same domain (case-insensitive); false for invalid input |
 | `EmailValidator.extract_tag(email)` | Extract the sub-address tag after `+` in the local part; nil if none or invalid |
 | `EmailValidator.strip_tag(email)` | Remove any `+tag` from the local part; returns the original value on invalid input |
 | `EmailValidator.split(email)` | Return `{ local:, domain:, tag: }`; `nil` for invalid input |
